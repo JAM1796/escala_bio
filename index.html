@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Escala Médica - BIOCOR</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .pattern-dots {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 8px 8px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // ==========================================
+        // DADOS PRESET (JANEIRO 2026)
+        // ==========================================
+        const JAN_2026_DATA = `01/01/2026, pa-diurno, Patricia
+01/01/2026, pa-diurno, Juliana
+01/01/2026, horizontal-manhã, Sergio Diniz
+01/01/2026, horizontal-tarde, Luiz Siqueira
+01/01/2026, pa-noturno, Rafaela Vasconcelos
+01/01/2026, pa-noturno, Filipe Ferrari
+02/01/2026, pa-diurno, Bruna Pimenta
+02/01/2026, pa-diurno, Sergio Diniz
+02/01/2026, horizontal, Paulo Vitor
+02/01/2026, pa-noturno, Larissa Mendes
+02/01/2026, pa-noturno, Joao Ataide
+03/01/2026, pa-diurno, Natalia Araujo
+03/01/2026, pa-diurno, Bruna Pimenta
+03/01/2026, pa-noturno, Gabriela Ourivio
+03/01/2026, pa-noturno, Thaynara
+04/01/2026, pa-diurno, Natalia Araujo
+04/01/2026, pa-diurno, Sergio Diniz
+04/01/2026, pa-noturno, Fernanda Freire
+04/01/2026, pa-noturno, Filipe Ferrari
+05/01/2026, pa-diurno, Rafael Prates
+05/01/2026, pa-diurno, Paulo Vitor
+05/01/2026, horizontal-manhã, Fabiano Argeu
+05/01/2026, horizontal-tarde, Clara Machado
+05/01/2026, pa-noturno, Cassia Caetano
+05/01/2026, pa-noturno, Ana Paula
+06/01/2026, pa-diurno, Thaynara
+06/01/2026, pa-diurno, Filipe Ferrari
+06/01/2026, horizontal-manhã, Fabiano Argeu
+06/01/2026, horizontal-tarde, Clara Machado
+06/01/2026, pa-noturno, Rafaela Vasconcelos
+06/01/2026, pa-noturno, Cassia Caetano
+07/01/2026, pa-diurno, Paulo Vitor
+07/01/2026, pa-diurno, Renan Salgado
+07/01/2026, horizontal-manhã, Sergio Diniz
+07/01/2026, horizontal-tarde, Luiz Siqueira
+07/01/2026, pa-noturno, Ana Paula
+07/01/2026, pa-noturno, Clara Machado
+08/01/2026, pa-diurno, Patricia
+08/01/2026, pa-diurno, Juliana
+08/01/2026, horizontal-manhã, Sergio Diniz
+08/01/2026, horizontal-tarde, Luiz Siqueira
+08/01/2026, pa-noturno, Fernanda Freire
+08/01/2026, pa-noturno, Filipe Ferrari
+09/01/2026, pa-diurno, Patricia
+09/01/2026, pa-diurno, Bruna Pimenta
+09/01/2026, horizontal, Paulo Vitor
+09/01/2026, pa-noturno, Maria Mameluque
+09/01/2026, pa-noturno, Marina Eto
+10/01/2026, pa-diurno, Filipe Ferrari
+10/01/2026, pa-diurno, Patricia
+10/01/2026, pa-noturno, Gabriela Gois
+10/01/2026, pa-noturno, Rafaela Vasconcelos
+11/01/2026, pa-diurno, Clara Machado
+11/01/2026, pa-diurno, Leticia Batista
+11/01/2026, pa-noturno, Guilherme Paiva
+11/01/2026, pa-noturno, Juliana
+12/01/2026, pa-diurno, Rafael Prates
+12/01/2026, pa-diurno, Paulo Vitor
+12/01/2026, horizontal-manhã, Fabiano Argeu
+12/01/2026, horizontal-tarde, Maria Mameluque
+12/01/2026, pa-noturno, Fernanda Freire
+12/01/2026, pa-noturno, Clara Machado
+13/01/2026, pa-diurno, Thaynara
+13/01/2026, pa-diurno, Filipe Ferrari
+13/01/2026, horizontal-manhã, Fabiano Argeu
+13/01/2026, horizontal-tarde, Clara Machado
+13/01/2026, pa-noturno, Gabriela Ourivio
+13/01/2026, pa-noturno, Cassia Caetano
+14/01/2026, pa-diurno, Paulo Vitor
+14/01/2026, pa-diurno, Renan Salgado
+14/01/2026, horizontal-manhã, Sergio Diniz
+14/01/2026, horizontal-tarde, Luiz Siqueira
+14/01/2026, pa-noturno, Ana Paula
+14/01/2026, pa-noturno, Clara Machado
+15/01/2026, pa-diurno, Patricia
+15/01/2026, pa-diurno, Juliana
+15/01/2026, horizontal-manhã, Sergio Diniz
+15/01/2026, horizontal-tarde, Luiz Siqueira
+15/01/2026, pa-noturno, Fernanda Freire
+15/01/2026, pa-noturno, Filipe Ferrari
+16/01/2026, pa-diurno, Bruna Pimenta
+16/01/2026, pa-diurno, Sergio Diniz
+16/01/2026, horizontal, Paulo Vitor
+16/01/2026, pa-noturno, Gabriela Rangel
+16/01/2026, pa-noturno, Juliana
+17/01/2026, pa-diurno, Renan Salgado
+17/01/2026, pa-diurno, Ana Paula
+17/01/2026, pa-noturno, Rafaela Vasconcelos
+17/01/2026, pa-noturno, Lara
+18/01/2026, pa-diurno, Ana Paula
+18/01/2026, pa-diurno, Isabela Nogueira
+18/01/2026, pa-noturno, Isabela Gomes
+18/01/2026, pa-noturno, Clara Machado
+19/01/2026, pa-diurno, Juliana
+19/01/2026, pa-diurno, Paulo Vitor
+19/01/2026, horizontal-manhã, Fabiano Argeu
+19/01/2026, horizontal-tarde, Clara Machado
+19/01/2026, pa-noturno, Cassia Caetano
+19/01/2026, pa-noturno, Ana Paula
+20/01/2026, pa-diurno, Thaynara
+20/01/2026, pa-diurno, Filipe Ferrari
+20/01/2026, horizontal-manhã, Fabiano Argeu
+20/01/2026, horizontal-tarde, Clara Machado
+20/01/2026, pa-noturno, Rafaela Vasconcelos
+20/01/2026, pa-noturno, Cassia Caetano
+21/01/2026, pa-diurno, Paulo Vitor
+21/01/2026, pa-diurno, Renan Salgado
+21/01/2026, horizontal-manhã, Sergio Diniz
+21/01/2026, horizontal-tarde, Luiz Siqueira
+21/01/2026, pa-noturno, Ana Paula
+21/01/2026, pa-noturno, Clara Machado
+22/01/2026, pa-diurno, Patricia
+22/01/2026, pa-diurno, Juliana
+22/01/2026, horizontal-manhã, Sergio Diniz
+22/01/2026, horizontal-tarde, Luiz Siqueira
+22/01/2026, pa-noturno, Fernanda Freire
+22/01/2026, pa-noturno, Filipe Ferrari
+23/01/2026, pa-diurno, Patricia
+23/01/2026, pa-diurno, Bruna Pimenta
+23/01/2026, horizontal, Paulo Vitor
+23/01/2026, pa-noturno, Cassia Caetano
+23/01/2026, pa-noturno, Gabriela Gois
+24/01/2026, pa-diurno, Maria Mameluque
+24/01/2026, pa-diurno, Daniela Alves
+24/01/2026, pa-noturno, Isabela Gomes
+24/01/2026, pa-noturno, Larissa Mendes
+25/01/2026, pa-diurno, Paulo Vitor
+25/01/2026, pa-diurno, Hugo Duarte
+25/01/2026, pa-noturno, Cassia Caetano
+25/01/2026, pa-noturno, Rafaela Vasconcelos
+26/01/2026, pa-diurno, Juliana
+26/01/2026, pa-diurno, Paulo Vitor
+26/01/2026, horizontal-manhã, Fabiano Argeu
+26/01/2026, horizontal-tarde, Maria Mameluque
+26/01/2026, pa-noturno, Clara Machado
+26/01/2026, pa-noturno, Fernanda Freire
+27/01/2026, pa-diurno, Thaynara
+27/01/2026, pa-diurno, Filipe Ferrari
+27/01/2026, horizontal-manhã, Fabiano Argeu
+27/01/2026, horizontal-tarde, Clara Machado
+27/01/2026, pa-noturno, Gabriela Ourivio
+27/01/2026, pa-noturno, Cassia Caetano
+28/01/2026, pa-diurno, Paulo Vitor
+28/01/2026, pa-diurno, Renan Salgado
+28/01/2026, horizontal-manhã, Sergio Diniz
+28/01/2026, horizontal-tarde, Luiz Siqueira
+28/01/2026, pa-noturno, Ana Paula
+28/01/2026, pa-noturno, Clara Machado
+29/01/2026, pa-diurno, Patricia
+29/01/2026, pa-diurno, Juliana
+29/01/2026, horizontal-manhã, Sergio Diniz
+29/01/2026, horizontal-tarde, Luiz Siqueira
+29/01/2026, pa-noturno, Wellington
+29/01/2026, pa-noturno, Filipe Ferrari
+30/01/2026, pa-diurno, Bruna Pimenta
+30/01/2026, pa-diurno, Sergio Diniz
+30/01/2026, horizontal, Paulo Vitor
+30/01/2026, pa-noturno, Larissa Mendes
+30/01/2026, pa-noturno, Joao Ataide
+31/01/2026, pa-diurno, Luiz Siqueira
+31/01/2026, pa-diurno, Bruna Pimenta
+31/01/2026, pa-noturno, Gabriela Ourivio
+31/01/2026, pa-noturno, Thaynara`;
+
+        // ==========================================
+        // CONFIGURAÇÃO E MOCKS
+        // ==========================================
+        
+        const { useState, useEffect, useMemo, useContext, createContext, useRef } = React;
+
+        const LucideIcon = ({ name, size = 24, className = "", color }) => {
+            const iconDef = window.lucide?.icons?.[name];
+            if (!iconDef) return null;
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {iconDef.map((child, index) => React.createElement(child[0], { ...child[1], key: index }))}
+                </svg>
+            );
+        };
+
+        const USED_ICONS = ['Calendar', 'Clock', 'User', 'Users', 'ShieldAlert', 'CheckCircle', 'History', 'Trash2', 'Edit', 'Plus', 'Upload', 'Download', 'AlertTriangle', 'ChevronLeft', 'ChevronRight', 'Moon', 'Sun', 'Briefcase', 'Stethoscope', 'Slash', 'RefreshCw', 'MessageSquare', 'X', 'AlertCircle', 'LayoutGrid', 'FileDown'];
+        const Icons = {};
+        USED_ICONS.forEach(name => Icons[name] = (props) => <LucideIcon name={name} {...props} />);
+        const { Calendar, Clock, User, Users, ShieldAlert, CheckCircle, History, Trash2, Edit, Plus, Upload, Download, AlertTriangle, ChevronLeft, ChevronRight, Moon, Sun, Briefcase, Stethoscope, Slash, RefreshCw, MessageSquare, X, AlertCircle, LayoutGrid, FileDown } = Icons;
+
+        // Lista Inicial de Médicos (apenas para seeding na primeira vez)
+        const INITIAL_DOCTORS = [
+            { id: 'd1', name: 'Ana Paula', crm: '10001', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd2', name: 'Bruna Pimenta', crm: '10002', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd3', name: 'Cassia Caetano', crm: '10003', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd4', name: 'Clara Machado', crm: '10004', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd5', name: 'Daniela Alves', crm: '10005', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd6', name: 'Fabiano Argeu', crm: '10006', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd24', name: 'Fernanda Freire', crm: '10024', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd7', name: 'Filipe Ferrari', crm: '10007', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd8', name: 'Gabriela Gois', crm: '10008', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd10', name: 'Gabriela Ourivio', crm: '10010', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd9', name: 'Gabriela Rangel', crm: '10009', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd28', name: 'Guilherme Paiva', crm: '10028', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd11', name: 'Hugo Duarte', crm: '10011', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd27', name: 'Isabela Gomes', crm: '10027', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd26', name: 'Isabela Nogueira', crm: '10026', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd12', name: 'Joao Ataide', crm: '85393', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd13', name: 'Juliana', crm: '10013', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd30', name: 'Lara', crm: '1030', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd14', name: 'Larissa Mendes', crm: '10014', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd32', name: 'Leticia Batista', crm: '10032', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd15', name: 'Luiz Siqueira', crm: '10015', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd16', name: 'Maria Mameluque', crm: '10016', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd17', name: 'Marina Eto', crm: '10017', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd18', name: 'Natalia Araujo', crm: '10018', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd19', name: 'Patricia', crm: '10019', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd20', name: 'Paulo Vitor', crm: '10020', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd31', name: 'Rafael Prates', crm: '10031', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd21', name: 'Rafaela Vasconcelos', crm: '10021', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd25', name: 'Renan Salgado', crm: '10025', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd29', name: 'Sergio Diniz', crm: '10029', specialty: 'Clínica Médica', allowedHorizontal: true },
+            { id: 'd22', name: 'Thaynara', crm: '10022', specialty: 'Clínica Médica', allowedHorizontal: false },
+            { id: 'd23', name: 'Wellington', crm: '10023', specialty: 'Clínica Médica', allowedHorizontal: true },
+        ];
+
+        const ROLES = {
+            'pa-diurno': { id: 'pa-diurno', label: 'PA - Diurno', time: '07:00 - 19:00' },
+            'pa-manha': { id: 'pa-manha', label: 'PA - Manhã', time: '07:00 - 13:00' },
+            'pa-tarde': { id: 'pa-tarde', label: 'PA - Tarde', time: '13:00 - 19:00' },
+            'horizontal': { id: 'horizontal', label: 'Horizontal / Rotina', time: '09:00 - 21:00' },
+            'horizontal-manha': { id: 'horizontal-manha', label: 'Horizontal - Manhã', time: '09:00 - 15:00' },
+            'horizontal-tarde': { id: 'horizontal-tarde', label: 'Horizontal - Tarde', time: '15:00 - 21:00' },
+            'pa-noturno': { id: 'pa-noturno', label: 'PA - Noturno', time: '19:00 - 07:00' }
+        };
+
+        const ROLE_GROUPS = [
+            {
+                id: 'pa-diurno', label: 'PA - Diurno', time: '07:00 - 19:00', icon: Sun, color: 'bg-blue-100 text-blue-800', target: 2, badgeColor: 'bg-blue-500',
+                subRoles: ['pa-diurno', 'pa-manha', 'pa-tarde'], 
+                options: [
+                    { id: 'pa-diurno', label: 'Plantão Completo (12h)', short: '12h' },
+                    { id: 'pa-manha', label: 'Manhã (07:00 - 13:00)', short: 'Manhã' },
+                    { id: 'pa-tarde', label: 'Tarde (13:00 - 19:00)', short: 'Tarde' }
+                ]
+            },
+            {
+                id: 'horizontal', label: 'Horizontal', time: '09:00 - 21:00', icon: Briefcase, color: 'bg-emerald-100 text-emerald-800', target: 1, badgeColor: 'bg-emerald-500',
+                subRoles: ['horizontal', 'horizontal-manha', 'horizontal-tarde'],
+                options: [
+                    { id: 'horizontal', label: 'Horizontal 12h', short: '12h' },
+                    { id: 'horizontal-manha', label: 'Manhã (09:00 - 15:00)', short: 'Manhã' },
+                    { id: 'horizontal-tarde', label: 'Tarde (15:00 - 21:00)', short: 'Tarde' }
+                ]
+            },
+            {
+                id: 'pa-noturno', label: 'PA - Noturno', time: '19:00 - 07:00', icon: Moon, color: 'bg-indigo-100 text-indigo-800', target: 2, badgeColor: 'bg-indigo-500',
+                subRoles: ['pa-noturno'],
+                options: [
+                    { id: 'pa-noturno', label: 'Plantão 12h', short: '12h' }
+                ]
+            }
+        ];
+
+        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+        let app, auth, db;
+        
+        if (typeof firebase !== 'undefined' && firebase.apps) {
+            try {
+                if (!firebase.apps.length) app = firebase.initializeApp(firebaseConfig);
+                else app = firebase.app();
+                auth = firebase.auth();
+                db = firebase.firestore();
+            } catch (error) { console.error("Erro Firebase", error); }
+        }
+
+        const appId = window.__app_id || 'default-app-id';
+        const formatDate = (date) => date.toISOString().split('T')[0];
+        const parseDateString = (str) => new Date(str + 'T12:00:00'); 
+
+        const levenshtein = (a, b) => {
+            if(a.length === 0) return b.length; 
+            if(b.length === 0) return a.length;
+            const matrix = [];
+            for(let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for(let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for(let i = 1; i <= b.length; i++){
+                for(let j = 1; j <= a.length; j++){
+                    if(b.charAt(i-1) == a.charAt(j-1)) matrix[i][j] = matrix[i-1][j-1];
+                    else matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, matrix[i][j-1] + 1, matrix[i-1][j] + 1);
+                }
+            }
+            return matrix[b.length][a.length];
+        };
+
+        const findBestMatchDoctor = (nameInput) => {
+            const normalizedInput = nameInput.toLowerCase().trim();
+            let bestMatch = null;
+            let lowestDist = Infinity;
+            DOCTORS_MOCK.forEach(doc => {
+                const dist = levenshtein(normalizedInput, doc.name.toLowerCase());
+                if (dist < lowestDist && dist < 5) { lowestDist = dist; bestMatch = doc; }
+            });
+            return bestMatch;
+        };
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [authLoading, setAuthLoading] = useState(true);
+            const [shifts, setShifts] = useState([]);
+            const [doctors, setDoctors] = useState([]); // Doctors state
+            const [loadingShifts, setLoadingShifts] = useState(false);
+            const [viewMode, setViewMode] = useState('daily');
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+            
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false); // New modal
+            const [editingShift, setEditingShift] = useState(null);
+            const [targetGroup, setTargetGroup] = useState(null);
+            
+            const [confirmData, setConfirmData] = useState({ isOpen: false, title: '', msg: '', onConfirm: null });
+            const [alertData, setAlertData] = useState({ isOpen: false, msg: '', type: 'error' });
+
+            // Helper within component context to use dynamic doctors
+            const findBestMatchDoctor = (nameInput) => {
+                const normalizedInput = nameInput.toLowerCase().trim();
+                let bestMatch = null;
+                let lowestDist = Infinity;
+                doctors.forEach(doc => {
+                    const dist = levenshtein(normalizedInput, doc.name.toLowerCase());
+                    if (dist < lowestDist && dist < 5) { lowestDist = dist; bestMatch = doc; }
+                });
+                return bestMatch;
+            };
+
+            useEffect(() => {
+                const initAuth = async () => {
+                    if (!auth) { setAuthLoading(false); return; }
+                    try {
+                        if (window.__initial_auth_token) await auth.signInWithCustomToken(window.__initial_auth_token);
+                        else await auth.signInAnonymously();
+                    } catch (e) { console.error("Auth falhou", e); }
+                };
+                initAuth();
+                let unsubscribe = auth ? auth.onAuthStateChanged((u) => { setUser(u); setAuthLoading(false); }) : () => {};
+                window.addEventListener('online', () => setIsOnline(true));
+                window.addEventListener('offline', () => setIsOnline(false));
+                return () => { unsubscribe(); };
+            }, []);
+
+            // Fetch Doctors & Migrate if needed
+            useEffect(() => {
+                if (!user || !db) return;
+                const doctorsRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors');
+                
+                // Fetch doctors
+                const unsubscribe = doctorsRef.onSnapshot(async (snapshot) => {
+                    if (snapshot.empty) {
+                        // Migration: Seed initial doctors
+                        const batch = db.batch();
+                        INITIAL_DOCTORS.forEach(doc => {
+                            const docRef = doctorsRef.doc(doc.id);
+                            batch.set(docRef, doc);
+                        });
+                        try {
+                            await batch.commit();
+                            console.log("Migração de médicos concluída.");
+                        } catch (e) { console.error("Erro na migração", e); }
+                    } else {
+                        const fetchedDoctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        // Sort alphabetically
+                        fetchedDoctors.sort((a, b) => a.name.localeCompare(b.name));
+                        setDoctors(fetchedDoctors);
+                    }
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            useEffect(() => {
+                if (!user || !db) return;
+                setLoadingShifts(true);
+                const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts');
+                const unsubscribe = collectionRef.onSnapshot(
+                    (snapshot) => {
+                        const fetchedShifts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setShifts(fetchedShifts);
+                        setLoadingShifts(false);
+                    },
+                    (error) => { console.error("Erro dados", error); setLoadingShifts(false); }
+                );
+                return () => unsubscribe();
+            }, [user]);
+
+            const showAlert = (msg, type = 'error') => setAlertData({ isOpen: true, msg, type });
+
+            const getShiftsByDate = (dateStr) => shifts.filter(s => s.date === dateStr);
+
+            const handleSaveShift = async (shiftData, isEdit = false) => {
+                if (!user || !db) { showAlert("Erro de conexão com banco de dados."); return false; }
+                
+                const dateObj = parseDateString(shiftData.date);
+                const dayOfWeek = dateObj.getDay(); 
+                const doctor = doctors.find(d => d.id === shiftData.doctorId);
+
+                if (shiftData.roleId.includes('horizontal')) {
+                    if (dayOfWeek === 0 || dayOfWeek === 6) { showAlert("Horizontal fechada aos fins de semana."); return false; }
+                    if (!doctor?.allowedHorizontal) { showAlert(`Dr(a) ${doctor.name} não autorizado(a) para Horizontal.`); return false; }
+
+                    const currentHorizontal = shifts.filter(s => 
+                        s.date === shiftData.date && 
+                        s.roleId.includes('horizontal') && 
+                        s.id !== shiftData.id 
+                    );
+                    const potentialShifts = [...currentHorizontal, shiftData];
+                    
+                    if (potentialShifts.length === 2) {
+                        const hasTarde = potentialShifts.some(s => s.roleId === 'horizontal-tarde');
+                        const hasManha = potentialShifts.some(s => s.roleId === 'horizontal-manha');
+                        
+                        if (hasTarde && !hasManha) {
+                            showAlert("Regra de Escala Horizontal: Quando houver 2 médicos, se um for Tarde, o outro obrigatoriamente deve ser Manhã.");
+                            return false;
+                        }
+                    }
+                }
+                
+                const duplicates = shifts.find(s => s.date === shiftData.date && s.roleId === shiftData.roleId && s.doctorId === shiftData.doctorId && s.id !== shiftData.id);
+                if (duplicates) { showAlert("Médico já escalado neste horário exato."); return false; }
+
+                try {
+                    const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts');
+                    
+                    if (isEdit) {
+                        const oldShift = shifts.find(s => s.id === shiftData.id);
+                        let history = oldShift.history || [];
+                        
+                        if (oldShift.doctorId !== shiftData.doctorId) {
+                            const newDocName = doctors.find(d => d.id === shiftData.doctorId)?.name;
+                            const oldDocName = doctors.find(d => d.id === oldShift.doctorId)?.name;
+                            let msg = `Troca: ${oldDocName} -> ${newDocName}`;
+                            if (shiftData.observation) msg += ` (Obs: ${shiftData.observation})`;
+
+                            history.push({ type: 'swap', msg: msg, originalDoc: oldDocName, date: new Date().toISOString(), user: user.uid });
+                        } else if (oldShift.roleId !== shiftData.roleId) {
+                             history.push({ type: 'edit_role', msg: `Mudança Período: ${ROLES[oldShift.roleId].label} -> ${ROLES[shiftData.roleId].label}`, date: new Date().toISOString(), user: user.uid });
+                        } else if (oldShift.observation !== shiftData.observation) {
+                             history.push({ type: 'edit_obs', msg: `Obs alterada: ${shiftData.observation}`, date: new Date().toISOString(), user: user.uid });
+                        }
+
+                        await collectionRef.doc(shiftData.id).update({
+                            doctorId: shiftData.doctorId,
+                            roleId: shiftData.roleId,
+                            status: shiftData.status || 'confirmed',
+                            observation: shiftData.observation || '',
+                            history: history
+                        });
+                    } else {
+                        await collectionRef.add({ ...shiftData, history: [{ type: 'create', date: new Date().toISOString(), user: user.uid }] });
+                    }
+                    return true;
+                } catch (e) { console.error("Erro save", e); showAlert("Erro ao salvar dados."); return false; }
+            };
+
+            // Doctor Management Functions
+            const handleSaveDoctor = async (docData) => {
+                if (!user || !db) return;
+                try {
+                    const doctorsRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors');
+                    if (docData.id) {
+                        await doctorsRef.doc(docData.id).update(docData);
+                    } else {
+                        await doctorsRef.add(docData);
+                    }
+                    showAlert("Médico salvo com sucesso!", "success");
+                    return true;
+                } catch (e) {
+                    console.error(e);
+                    showAlert("Erro ao salvar médico.");
+                    return false;
+                }
+            };
+
+            const handleDeleteDoctor = async (id) => {
+                if (!confirm("Tem certeza? Isso não apagará os plantões passados, mas o médico sumirá da lista de seleção.")) return;
+                try {
+                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors').doc(id).delete();
+                    showAlert("Médico removido.", "success");
+                } catch(e) { showAlert("Erro ao remover."); }
+            };
+
+            const requestDeleteShift = (id) => {
+                setConfirmData({
+                    isOpen: true,
+                    title: 'Excluir Plantão',
+                    msg: 'Tem a certeza que deseja remover este plantão da escala?',
+                    onConfirm: async () => {
+                        try {
+                            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts').doc(id).delete();
+                            showAlert("Plantão removido com sucesso!", "success");
+                        } catch (e) {
+                            showAlert("Erro ao remover plantão.");
+                        }
+                    }
+                });
+            };
+
+            const handleMassImport = async (parsedShifts) => {
+                let successCount = 0;
+                for (const s of parsedShifts) {
+                    const doctor = findBestMatchDoctor(s.doctorName);
+                    if (!doctor) continue;
+                    const saved = await handleSaveShift({ date: s.date, roleId: s.roleId, doctorId: doctor.id, status: 'confirmed' });
+                    if (saved) successCount++;
+                }
+                showAlert(`Importação concluída: ${successCount} registros salvos.`, "success");
+            };
+
+            const handleAddShift = (group, dateObj) => {
+                setTargetGroup(group);
+                setEditingShift({ date: formatDate(dateObj), roleId: group.options[0].id, status: 'confirmed', doctorId: '', observation: '' });
+                setIsModalOpen(true);
+            };
+
+            const handleEditShift = (shift) => {
+                const group = ROLE_GROUPS.find(g => g.subRoles.includes(shift.roleId));
+                setTargetGroup(group);
+                setEditingShift(shift);
+                setIsModalOpen(true);
+            };
+
+            const goToDate = (date) => {
+                setCurrentDate(date);
+                setViewMode('daily');
+            };
+
+            if (authLoading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500">Carregando...</div>;
+
+            return (
+                <div className="min-h-screen bg-slate-50 flex flex-col">
+                    <Header isOnline={isOnline} viewMode={viewMode} setViewMode={setViewMode} onExport={() => {}} onImport={handleMassImport} onOpenDoctors={() => setIsDoctorModalOpen(true)} />
+                    <main className="flex-1 p-4 md:p-6 overflow-auto">
+                        <div className="max-w-7xl mx-auto space-y-6">
+                            <DateNavigation currentDate={currentDate} setCurrentDate={setCurrentDate} viewMode={viewMode} />
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 min-h-[600px] p-4">
+                                {loadingShifts ? <div className="p-10 text-center">Carregando...</div> : (
+                                    viewMode === 'daily' 
+                                    ? <DailyView date={currentDate} shifts={getShiftsByDate(formatDate(currentDate))} doctors={doctors} onDelete={requestDeleteShift} onAdd={handleAddShift} onEdit={handleEditShift} />
+                                    : viewMode === 'weekly' 
+                                        ? <WeeklyView currentDate={currentDate} shifts={shifts} doctors={doctors} onAdd={handleAddShift} onEdit={handleEditShift} />
+                                        : <MonthlyView currentDate={currentDate} shifts={shifts} doctors={doctors} onAdd={handleAddShift} onEdit={handleEditShift} onDateClick={goToDate} />
+                                )}
+                            </div>
+                        </div>
+                    </main>
+                    
+                    {isModalOpen && <ShiftModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialData={editingShift} targetGroup={targetGroup} doctors={doctors} onSave={handleSaveShift} onDelete={requestDeleteShift} />}
+                    {isDoctorModalOpen && <DoctorManagerModal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} doctors={doctors} onSave={handleSaveDoctor} onDelete={handleDeleteDoctor} />}
+                    
+                    <ConfirmModal isOpen={confirmData.isOpen} title={confirmData.title} msg={confirmData.msg} onClose={() => setConfirmData({...confirmData, isOpen: false})} onConfirm={confirmData.onConfirm} />
+                    <AlertModal isOpen={alertData.isOpen} msg={alertData.msg} type={alertData.type} onClose={() => setAlertData({...alertData, isOpen: false})} />
+                </div>
+            );
+        }
+
+        // --- Componentes de UI ---
+
+        const Header = ({ isOnline, viewMode, setViewMode, onExport, onImport, onOpenDoctors }) => {
+            const [showImport, setShowImport] = useState(false);
+            return (
+                <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-4 py-3 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-blue-600 p-2 rounded-lg text-white"><Stethoscope size={24} /></div>
+                        <div><h1 className="font-bold text-lg text-slate-800">BIOCOR <span className="font-normal text-slate-500">Escala</span></h1><div className={`text-xs ${isOnline ? 'text-green-600' : 'text-red-500'}`}>{isOnline ? 'Online' : 'Offline'}</div></div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-slate-100 p-1 rounded-lg flex text-sm mr-4 hidden md:flex">
+                            <button onClick={() => setViewMode('daily')} className={`px-3 py-1.5 rounded-md ${viewMode === 'daily' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Diário</button>
+                            <button onClick={() => setViewMode('weekly')} className={`px-3 py-1.5 rounded-md ${viewMode === 'weekly' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Semanal</button>
+                            <button onClick={() => setViewMode('monthly')} className={`px-3 py-1.5 rounded-md ${viewMode === 'monthly' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Mensal</button>
+                        </div>
+                        <button onClick={onOpenDoctors} className="p-2 hover:bg-slate-100 rounded text-slate-600 flex items-center gap-1"><Users size={20}/></button>
+                        <button onClick={() => setShowImport(true)} className="p-2 hover:bg-slate-100 rounded text-slate-600"><Upload size={20} /></button>
+                        <button onClick={onExport} className="p-2 hover:bg-slate-100 rounded text-slate-600"><Download size={20} /></button>
+                    </div>
+                    {showImport && <ImportModal onClose={() => setShowImport(false)} onImport={onImport} />}
+                </header>
+            );
+        };
+
+        const DoctorManagerModal = ({ isOpen, onClose, doctors, onSave, onDelete }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [formData, setFormData] = useState({});
+
+            if (!isOpen) return null;
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                await onSave(formData);
+                setIsEditing(false);
+                setFormData({});
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden h-[500px] flex flex-col animate-in fade-in zoom-in duration-200">
+                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="font-bold text-lg text-slate-800">Gerenciar Equipe</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-hidden flex">
+                            {/* Lista */}
+                            <div className="w-1/2 border-r border-slate-200 overflow-y-auto p-2">
+                                <button onClick={() => { setIsEditing(true); setFormData({ allowedHorizontal: false }); }} className="w-full mb-2 p-2 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-blue-100"><Plus size={16}/> Novo Médico</button>
+                                {doctors.map(doc => (
+                                    <div key={doc.id} className="p-3 border-b border-slate-100 hover:bg-slate-50 flex justify-between items-center group">
+                                        <div>
+                                            <div className="font-medium text-sm text-slate-800">{doc.name}</div>
+                                            <div className="text-xs text-slate-500">CRM: {doc.crm}</div>
+                                        </div>
+                                        <button onClick={() => { setIsEditing(true); setFormData(doc); }} className="text-slate-400 hover:text-blue-600 p-1"><Edit size={16}/></button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Form */}
+                            <div className="w-1/2 p-6 overflow-y-auto bg-slate-50/50">
+                                {isEditing ? (
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        <h4 className="font-bold text-sm uppercase text-slate-500 mb-4">{formData.id ? 'Editar Médico' : 'Novo Médico'}</h4>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">Nome Completo</label>
+                                            <input required type="text" className="w-full p-2 border rounded" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">CRM</label>
+                                            <input required type="text" className="w-full p-2 border rounded" value={formData.crm || ''} onChange={e => setFormData({...formData, crm: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">Especialidade</label>
+                                            <input required type="text" className="w-full p-2 border rounded" value={formData.specialty || ''} onChange={e => setFormData({...formData, specialty: e.target.value})} />
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-2">
+                                            <input type="checkbox" id="h-allow" checked={formData.allowedHorizontal || false} onChange={e => setFormData({...formData, allowedHorizontal: e.target.checked})} />
+                                            <label htmlFor="h-allow" className="text-sm text-slate-700">Autorizado Horizontal?</label>
+                                        </div>
+                                        <div className="pt-4 flex gap-2">
+                                            <button type="button" onClick={() => setIsEditing(false)} className="px-3 py-2 bg-slate-200 rounded text-sm">Cancelar</button>
+                                            <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Salvar</button>
+                                        </div>
+                                        {formData.id && (
+                                            <div className="pt-4 border-t border-slate-200 mt-4">
+                                                <button type="button" onClick={() => { onDelete(formData.id); setIsEditing(false); }} className="text-red-600 text-xs hover:underline">Excluir este médico</button>
+                                            </div>
+                                        )}
+                                    </form>
+                                ) : (
+                                    <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm p-4">
+                                        Selecione um médico para editar ou adicione um novo.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const DateNavigation = ({ currentDate, setCurrentDate, viewMode }) => {
+            const navigate = (dir) => { 
+                const n = new Date(currentDate); 
+                if (viewMode === 'monthly') {
+                    n.setMonth(n.getMonth() + dir);
+                } else if (viewMode === 'weekly') {
+                    n.setDate(n.getDate() + (dir * 7));
+                } else {
+                    n.setDate(n.getDate() + dir);
+                }
+                setCurrentDate(n); 
+            };
+            
+            const formatTitle = () => {
+                if (viewMode === 'monthly') return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                return currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            };
+
+            return (
+                <div className="flex justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full"><ChevronLeft size={20} /></button>
+                    <h2 className="text-lg font-semibold capitalize">{formatTitle()}</h2>
+                    <button onClick={() => navigate(1)} className="p-2 hover:bg-slate-100 rounded-full"><ChevronRight size={20} /></button>
+                </div>
+            );
+        };
+
+        const MonthlyView = ({ currentDate, shifts, doctors, onAdd, onEdit, onDateClick }) => {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const days = [];
+            for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
+            for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+
+            return (
+                <div className="animate-in fade-in duration-500">
+                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden">
+                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                            <div key={d} className="bg-slate-100 p-2 text-center text-sm font-bold text-slate-600">{d}</div>
+                        ))}
+                        {days.map((date, idx) => {
+                            if (!date) return <div key={`empty-${idx}`} className="bg-white min-h-[140px] opacity-50"></div>;
+                            
+                            const dateStr = formatDate(date);
+                            const dayShifts = shifts.filter(s => s.date === dateStr);
+                            const isToday = formatDate(new Date()) === dateStr;
+
+                            return (
+                                <div key={dateStr} className={`bg-white min-h-[140px] p-1 relative flex flex-col group ${isToday ? 'bg-blue-50/50' : ''}`}>
+                                    <div className="flex justify-between items-center px-1 mb-1">
+                                        <span onClick={() => onDateClick(date)} className={`text-xs font-semibold cursor-pointer hover:bg-slate-100 px-1.5 py-0.5 rounded ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-700'}`}>
+                                            {date.getDate()}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] mb-6">
+                                        {dayShifts.map(s => {
+                                            const doc = doctors.find(d => d.id === s.doctorId);
+                                            const group = ROLE_GROUPS.find(g => g.subRoles.includes(s.roleId));
+                                            const isPartial = s.roleId.includes('manha') || s.roleId.includes('tarde');
+                                            const badge = isPartial ? (s.roleId.includes('manha') ? 'M' : 'T') : '';
+                                            
+                                            const colorClass = group?.id === 'pa-diurno' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                               group?.id === 'horizontal' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                               'bg-indigo-100 text-indigo-700 border-indigo-200';
+
+                                            return (
+                                                <div 
+                                                    key={s.id} 
+                                                    onClick={() => onEdit(s)}
+                                                    className={`text-[9px] px-1 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 transition-opacity ${colorClass} flex justify-between items-center`}
+                                                    title={`${doc?.name} - ${ROLES[s.roleId].label}`}
+                                                >
+                                                    <span className="truncate">{doc?.name?.split(' ')[0]}</span>
+                                                    {badge && <span className="font-bold text-[8px] ml-0.5 opacity-80">{badge}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg">
+                                        <button onClick={() => onAdd(ROLE_GROUPS[0], date)} className="p-1 hover:bg-blue-100 text-blue-600 rounded" title="Add Diurno"><Sun size={12} /></button>
+                                        <button onClick={() => onAdd(ROLE_GROUPS[1], date)} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded" title="Add Horizontal"><Briefcase size={12} /></button>
+                                        <button onClick={() => onAdd(ROLE_GROUPS[2], date)} className="p-1 hover:bg-indigo-100 text-indigo-600 rounded" title="Add Noturno"><Moon size={12} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        const DailyView = ({ date, shifts, doctors, onDelete, onAdd, onEdit }) => {
+            return (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                    {ROLE_GROUPS.map(group => {
+                        const groupShifts = shifts.filter(s => group.subRoles.includes(s.roleId));
+                        return (
+                            <div key={group.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                <div className={`p-4 flex justify-between ${group.color} bg-opacity-30`}>
+                                    <div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-white/50"><group.icon size={20} /></div><div><h3 className="font-bold">{group.label}</h3><p className="text-sm opacity-80">{group.time}</p></div></div>
+                                    <div className="flex items-center gap-3"><span className="text-xs px-2 py-1 rounded-full bg-white/50 font-bold">{groupShifts.length} Médicos</span><button onClick={() => onAdd(group, date)} className="bg-white hover:bg-slate-50 text-slate-700 p-1.5 rounded shadow-sm"><Plus size={18} /></button></div>
+                                </div>
+                                <div className="p-4 bg-white space-y-3">
+                                    {groupShifts.length === 0 ? <div className="text-center py-4 text-slate-400 text-sm border-dashed border">Vazio</div> : 
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {groupShifts.map(s => <ShiftCard key={s.id} shift={s} doctor={doctors.find(d => d.id === s.doctorId)} badge={s.roleId.includes('manha') ? 'Manhã' : s.roleId.includes('tarde') ? 'Tarde' : null} onEdit={() => onEdit(s)} onDelete={() => onDelete(s.id)} />)}
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        const WeeklyView = ({ currentDate, shifts, doctors, onAdd, onEdit }) => {
+            const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(currentDate); d.setDate(d.getDate() - d.getDay() + i); return d; });
+            return (
+                <div className="overflow-x-auto pb-4">
+                    <div className="min-w-[1000px] grid grid-cols-8 gap-px bg-slate-200 border border-slate-200 rounded-lg">
+                        <div className="bg-slate-100 p-3 font-bold text-slate-600 text-sm text-center">Turno</div>
+                        {days.map(d => <div key={d} className={`p-2 text-center text-sm ${formatDate(d) === formatDate(new Date()) ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-white'}`}><div>{d.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase()}</div><div className="text-xs">{d.getDate()}/{d.getMonth()+1}</div></div>)}
+                        {ROLE_GROUPS.map(g => (
+                            <React.Fragment key={g.id}>
+                                <div className="bg-white p-2 text-xs font-semibold text-slate-600 flex flex-col items-center justify-center text-center">{g.label}<span className="font-normal text-slate-400">{g.time}</span></div>
+                                {days.map(d => {
+                                    const dateStr = formatDate(d);
+                                    const dayShifts = shifts.filter(s => s.date === dateStr && g.subRoles.includes(s.roleId));
+                                    const blocked = g.id.includes('horizontal') && (d.getDay() === 0 || d.getDay() === 6);
+                                    return (
+                                        <div key={dateStr} className={`bg-white min-h-[80px] p-1 relative group ${blocked ? 'bg-slate-50 pattern-dots' : ''}`}>
+                                            {blocked ? <div className="absolute inset-0 flex items-center justify-center opacity-10"><Slash size={32} /></div> : 
+                                                <div className="flex flex-col h-full space-y-1">
+                                                    {dayShifts.map(s => {
+                                                        const doc = doctors.find(doc => doc.id === s.doctorId);
+                                                        const badge = s.roleId.includes('manha') ? 'M' : s.roleId.includes('tarde') ? 'T' : '';
+                                                        const lastSwap = s.history && [...s.history].reverse().find(h => h.type === 'swap');
+                                                        return (
+                                                            <div key={s.id} onClick={() => onEdit(s)} className="text-[10px] bg-blue-50 border border-blue-100 p-1 rounded text-blue-800 truncate cursor-pointer hover:bg-blue-100 flex justify-between items-center" title={doc?.name}>
+                                                                <span className="truncate flex items-center gap-1">
+                                                                    {lastSwap && <RefreshCw size={8} className="text-amber-600" />}
+                                                                    {doc?.name?.split(' ')[0]}
+                                                                </span>
+                                                                {badge && <span className="ml-1 font-bold text-blue-600">{badge}</span>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    <button onClick={() => onAdd(g, d)} className="mt-auto w-full py-1 text-xs text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-all">+ Add</button>
+                                                </div>
+                                            }
+                                        </div>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const ShiftCard = ({ shift, doctor, badge, onEdit, onDelete }) => {
+            const history = shift.history || [];
+            const lastSwap = [...history].reverse().find(h => h.type === 'swap');
+            const hasObs = !!shift.observation;
+
+            return (
+                <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow group relative">
+                    <div className="flex items-center gap-3 w-full">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-sm relative shrink-0">
+                            {doctor?.name.charAt(0)}{doctor?.name.split(' ')[1]?.charAt(0)}
+                            {badge && <span className="absolute -bottom-1 -right-2 bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-sm border border-white">{badge}</span>}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="font-medium text-slate-800 flex items-center gap-2 truncate">{doctor?.name}</div>
+                            {lastSwap && <div className="text-xs text-amber-600 flex items-center gap-1 mt-0.5 font-medium bg-amber-50 px-1.5 py-0.5 rounded w-fit" title={lastSwap.msg}><RefreshCw size={10} />Subst. {lastSwap.originalDoc || 'Colega'}</div>}
+                            {hasObs && <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5" title={shift.observation}><MessageSquare size={10} />{shift.observation}</div>}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-slate-100">
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded"><Edit size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded"><Trash2 size={14} /></button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ConfirmModal = ({ isOpen, title, msg, onClose, onConfirm }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center gap-3 mb-4 text-red-600"><AlertTriangle size={24} /><h3 className="font-bold text-lg text-slate-800">{title}</h3></div>
+                        <p className="text-slate-600 mb-6">{msg}</p>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                            <button onClick={() => { onConfirm(); onClose(); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">Confirmar</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AlertModal = ({ isOpen, msg, type, onClose }) => {
+            if (!isOpen) return null;
+            const isSuccess = type === 'success';
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center animate-in fade-in zoom-in duration-200">
+                        <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isSuccess ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                            {isSuccess ? <CheckCircle size={28} /> : <AlertCircle size={28} />}
+                        </div>
+                        <p className="text-slate-800 font-medium mb-6">{msg}</p>
+                        <button onClick={onClose} className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg">OK</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ShiftModal = ({ isOpen, onClose, initialData, targetGroup, doctors, onSave, onDelete }) => {
+            const [formData, setFormData] = useState(initialData);
+            const [searchTerm, setSearchTerm] = useState('');
+            if (!isOpen) return null;
+            const filteredDoctors = doctors.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()) || d.crm.includes(searchTerm));
+            
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800">{initialData.id ? 'Editar Plantão' : 'Novo Plantão'}</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20}/></button></div>
+                        <form onSubmit={(e) => { e.preventDefault(); if(!formData.doctorId) return alert("Selecione médico"); onSave(formData, !!initialData.id).then(ok => ok && onClose()); }} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Data & Turno</label>
+                                <div className="text-slate-500 text-sm bg-slate-50 p-2 rounded border border-slate-200">{new Date(formData.date + 'T12:00:00').toLocaleDateString('pt-BR')} — {targetGroup?.label}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Horário</label>
+                                <div className="grid grid-cols-1 gap-2">{targetGroup?.options.map(opt => <label key={opt.id} className={`flex items-center p-3 rounded-lg border cursor-pointer ${formData.roleId === opt.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-200'}`}><input type="radio" name="roleId" value={opt.id} checked={formData.roleId === opt.id} onChange={() => setFormData({...formData, roleId: opt.id})} className="w-4 h-4 text-blue-600" /><span className="ml-2 text-sm text-slate-700">{opt.label}</span></label>)}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Médico</label>
+                                <input type="text" placeholder="Buscar..." className="w-full p-2 border border-slate-300 rounded-lg mb-2 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-lg">{filteredDoctors.map(doc => <div key={doc.id} onClick={() => setFormData({...formData, doctorId: doc.id})} className={`p-2 cursor-pointer text-sm flex justify-between hover:bg-slate-50 ${formData.doctorId === doc.id ? 'bg-blue-50' : ''}`}><span>{doc.name}</span>{formData.doctorId === doc.id && <CheckCircle size={16} className="text-blue-500" />}</div>)}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Observação / Motivo</label>
+                                <textarea className="w-full p-2 border border-slate-300 rounded-lg text-sm h-20" placeholder="Ex: Troca com Dr. João, Cobertura..." value={formData.observation || ''} onChange={(e) => setFormData({...formData, observation: e.target.value})}></textarea>
+                            </div>
+                            <div className="pt-2 flex justify-end gap-2 items-center">
+                                {initialData.id && <button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg mr-auto text-sm font-medium">Excluir</button>}
+                                <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow font-medium">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const ImportModal = ({ onClose, onImport }) => {
+            const [text, setText] = useState('');
+            const handleParse = () => {
+                const lines = text.split('\n'); const parsed = [];
+                lines.forEach(line => {
+                    if (!line.trim()) return; const parts = line.split(','); if (parts.length < 3) return;
+                    let dateStr = parts[0].trim(); if (dateStr.includes('/')) { const [d, m, y] = dateStr.split('/'); dateStr = `${y || new Date().getFullYear()}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+                    let roleId = 'pa-diurno'; const r = parts[1].toLowerCase();
+                    if(r.includes('noturno')) roleId = 'pa-noturno'; else if(r.includes('horizontal')) roleId = r.includes('manhã') ? 'horizontal-manha' : r.includes('tarde') ? 'horizontal-tarde' : 'horizontal'; else roleId = r.includes('manhã') ? 'pa-manha' : r.includes('tarde') ? 'pa-tarde' : 'pa-diurno';
+                    parsed.push({ date: dateStr, roleId, doctorName: parts[2].trim() });
+                });
+                onImport(parsed); onClose();
+            };
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6"><h3 className="font-bold text-lg mb-4">Importação em Massa</h3><textarea className="w-full h-40 p-3 border border-slate-300 rounded-lg font-mono text-sm" placeholder="DD/MM/AAAA, Turno, Nome" value={text} onChange={(e) => setText(e.target.value)}></textarea><div className="flex justify-between mt-4"><button onClick={() => setText(JAN_2026_DATA)} className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg flex items-center gap-2"><FileDown size={16}/> Carregar Dados: Jan 2026</button><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button onClick={handleParse} className="px-4 py-2 bg-green-600 text-white rounded-lg">Importar</button></div></div></div></div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
