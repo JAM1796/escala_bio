@@ -27,6 +27,13 @@
         .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
+        /* Animações para os Toasts */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -35,6 +42,47 @@
         .pattern-dots {
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
             background-size: 8px 8px;
+        }
+
+        /* --- ESTILOS DE IMPRESSÃO (PDF) --- */
+        @media print {
+            @page { size: landscape; margin: 5mm; }
+            body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: sans-serif; }
+            
+            /* Ocultar elementos de interface */
+            .no-print, button, .toast-enter, header button, .fixed { display: none !important; }
+            
+            /* Ajustes de Layout */
+            #root, main, .min-h-screen { height: auto !important; overflow: visible !important; display: block !important; }
+            main { padding: 0 !important; }
+            .max-w-7xl { max-width: none !important; margin: 0 !important; }
+            
+            /* Header simplificado */
+            header { position: static !important; border-bottom: 2px solid #000 !important; padding: 10px 0 !important; margin-bottom: 10px !important; display: block !important; }
+            header h1 { font-size: 24px !important; color: #000 !important; }
+            header .text-xs { display: none !important; } /* Ocultar status online */
+
+            /* Navegação de Data */
+            .flex.justify-between.bg-white { border: none !important; shadow: none !important; padding: 0 !important; margin-bottom: 10px !important; justify-content: center !important; }
+            .flex.justify-between.bg-white h2 { font-size: 20px !important; text-transform: uppercase; color: #000 !important; }
+
+            /* Remove sombras e bordas decorativas */
+            .shadow-sm, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+            .bg-slate-50, .bg-slate-100, .bg-slate-200 { background: white !important; }
+            .border { border-color: #ccc !important; }
+
+            /* Ajustes Específicos da Visão Mensal */
+            .grid-cols-7 { gap: 0 !important; border: 1px solid #000 !important; }
+            .grid-cols-7 > div { border: 1px solid #000 !important; margin: -1px 0 0 -1px !important; min-height: 120px !important; }
+            .overflow-y-auto { overflow: visible !important; max-height: none !important; } /* Expandir lista de médicos */
+            
+            /* Ajustes de Cores para Impressão */
+            .bg-blue-100 { background-color: #e6f0ff !important; border: 1px solid #99c2ff; color: #000 !important; }
+            .bg-emerald-100 { background-color: #e6fffa !important; border: 1px solid #99ffdd; color: #000 !important; }
+            .bg-indigo-100 { background-color: #f0f0ff !important; border: 1px solid #ccccff; color: #000 !important; }
+            
+            /* Visão Diária/Semanal */
+            .min-w-\[1000px\] { min-width: 0 !important; width: 100% !important; }
         }
     </style>
 </head>
@@ -45,10 +93,6 @@
         // ==========================================
         //  CONFIGURAÇÃO DO FIREBASE (IMPORTANTE!)
         // ==========================================
-        // 1. Crie um projeto em console.firebase.google.com
-        // 2. Ative o Firestore Database e Authentication (Anônimo)
-        // 3. Cole suas credenciais abaixo substituindo os valores de exemplo:
-        
         const YOUR_FIREBASE_CONFIG = {
             apiKey: "AIzaSyB6oNPcwBIgS-iDLXiiFmhrL3BuPUu069E",
             authDomain: "escala-bb940.firebaseapp.com",
@@ -242,10 +286,10 @@
             );
         };
 
-        const USED_ICONS = ['Calendar', 'Clock', 'User', 'Users', 'ShieldAlert', 'CheckCircle', 'History', 'Trash2', 'Edit', 'Plus', 'Upload', 'Download', 'AlertTriangle', 'ChevronLeft', 'ChevronRight', 'Moon', 'Sun', 'Briefcase', 'Stethoscope', 'Slash', 'RefreshCw', 'MessageSquare', 'X', 'AlertCircle', 'LayoutGrid', 'FileDown', 'Server'];
+        const USED_ICONS = ['Calendar', 'Clock', 'User', 'Users', 'ShieldAlert', 'CheckCircle', 'History', 'Trash2', 'Edit', 'Plus', 'Upload', 'Download', 'AlertTriangle', 'ChevronLeft', 'ChevronRight', 'Moon', 'Sun', 'Briefcase', 'Stethoscope', 'Slash', 'RefreshCw', 'MessageSquare', 'X', 'AlertCircle', 'LayoutGrid', 'FileDown', 'Server', 'Printer'];
         const Icons = {};
         USED_ICONS.forEach(name => Icons[name] = (props) => <LucideIcon name={name} {...props} />);
-        const { Calendar, Clock, User, Users, ShieldAlert, CheckCircle, History, Trash2, Edit, Plus, Upload, Download, AlertTriangle, ChevronLeft, ChevronRight, Moon, Sun, Briefcase, Stethoscope, Slash, RefreshCw, MessageSquare, X, AlertCircle, LayoutGrid, FileDown, Server } = Icons;
+        const { Calendar, Clock, User, Users, ShieldAlert, CheckCircle, History, Trash2, Edit, Plus, Upload, Download, AlertTriangle, ChevronLeft, ChevronRight, Moon, Sun, Briefcase, Stethoscope, Slash, RefreshCw, MessageSquare, X, AlertCircle, LayoutGrid, FileDown, Server, Printer } = Icons;
 
         // Lista Inicial de Médicos
         const INITIAL_DOCTORS = [
@@ -386,7 +430,7 @@
             const [targetGroup, setTargetGroup] = useState(null);
             
             const [confirmData, setConfirmData] = useState({ isOpen: false, title: '', msg: '', onConfirm: null });
-            const [alertData, setAlertData] = useState({ isOpen: false, msg: '', type: 'error' });
+            const [toasts, setToasts] = useState([]);
 
             const findBestMatchDoctor = (nameInput) => {
                 const normalizedInput = nameInput.toLowerCase().trim();
@@ -397,6 +441,16 @@
                     if (dist < lowestDist && dist < 5) { lowestDist = dist; bestMatch = doc; }
                 });
                 return bestMatch;
+            };
+
+            const addToast = (msg, type = 'info') => {
+                const id = Date.now() + Math.random(); 
+                setToasts(prev => [...prev, { id, msg, type }]);
+                setTimeout(() => removeToast(id), 3000);
+            };
+
+            const removeToast = (id) => {
+                setToasts(prev => prev.filter(t => t.id !== id));
             };
 
             useEffect(() => {
@@ -455,7 +509,6 @@
                 return () => unsubscribe();
             }, [user]);
 
-            const showAlert = (msg, type = 'error') => setAlertData({ isOpen: true, msg, type });
             const getShiftsByDate = (dateStr) => shifts.filter(s => s.date === dateStr);
 
             const handleSaveShift = async (shiftData, isEdit = false) => {
@@ -465,19 +518,19 @@
                 const doctor = doctors.find(d => d.id === shiftData.doctorId);
 
                 if (shiftData.roleId.includes('horizontal')) {
-                    if (dayOfWeek === 0 || dayOfWeek === 6) { showAlert("Horizontal fechada aos fins de semana."); return false; }
-                    if (!doctor?.allowedHorizontal) { showAlert(`Dr(a) ${doctor.name} não autorizado(a) para Horizontal.`); return false; }
+                    if (dayOfWeek === 0 || dayOfWeek === 6) { addToast("Horizontal fechada aos fins de semana.", 'error'); return false; }
+                    if (!doctor?.allowedHorizontal) { addToast(`Dr(a) ${doctor.name} não autorizado(a) para Horizontal.`, 'error'); return false; }
                     
                     const currentHorizontal = shifts.filter(s => s.date === shiftData.date && s.roleId.includes('horizontal') && s.id !== shiftData.id);
                     const potentialShifts = [...currentHorizontal, shiftData];
                     if (potentialShifts.length === 2) {
                         const hasTarde = potentialShifts.some(s => s.roleId === 'horizontal-tarde');
                         const hasManha = potentialShifts.some(s => s.roleId === 'horizontal-manha');
-                        if (hasTarde && !hasManha) { showAlert("Regra Horizontal: 2 médicos = 1 Manhã + 1 Tarde (ou 2 Integrais). Tarde exige Manhã."); return false; }
+                        if (hasTarde && !hasManha) { addToast("Regra Horizontal: 2 médicos = 1 Manhã + 1 Tarde (ou 2 Integrais). Tarde exige Manhã.", 'error'); return false; }
                     }
                 }
                 const duplicates = shifts.find(s => s.date === shiftData.date && s.roleId === shiftData.roleId && s.doctorId === shiftData.doctorId && s.id !== shiftData.id);
-                if (duplicates) { showAlert("Médico já escalado neste horário exato."); return false; }
+                if (duplicates) { addToast("Médico já escalado neste horário exato.", 'error'); return false; }
 
                 try {
                     const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts');
@@ -499,8 +552,9 @@
                     } else {
                         await collectionRef.add({ ...shiftData, history: [{ type: 'create', date: new Date().toISOString(), user: user.uid }] });
                     }
+                    addToast("Plantão salvo com sucesso!", 'success');
                     return true;
-                } catch (e) { showAlert("Erro ao salvar."); return false; }
+                } catch (e) { addToast("Erro ao salvar.", 'error'); return false; }
             };
 
             const handleSaveDoctor = async (docData) => {
@@ -509,17 +563,21 @@
                     const doctorsRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors');
                     if (docData.id) await doctorsRef.doc(docData.id).update(docData);
                     else await doctorsRef.add(docData);
-                    showAlert("Médico salvo.", "success");
+                    addToast("Médico salvo.", "success");
                     return true;
-                } catch (e) { showAlert("Erro ao salvar médico."); return false; }
+                } catch (e) { addToast("Erro ao salvar médico.", 'error'); return false; }
             };
 
             const handleDeleteDoctor = async (id) => {
-                if (!confirm("Remover médico?")) return;
-                try {
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors').doc(id).delete();
-                    showAlert("Médico removido.", "success");
-                } catch(e) { showAlert("Erro ao remover."); }
+                setConfirmData({
+                    isOpen: true, title: 'Excluir Médico', msg: 'Tem certeza? Isso não apagará os plantões passados, mas o médico sumirá da lista de seleção.',
+                    onConfirm: async () => {
+                        try {
+                            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors').doc(id).delete();
+                            addToast("Médico removido.", "success");
+                        } catch(e) { addToast("Erro ao remover.", 'error'); }
+                    }
+                });
             };
 
             const requestDeleteShift = (id) => {
@@ -528,8 +586,8 @@
                     onConfirm: async () => {
                         try {
                             await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts').doc(id).delete();
-                            showAlert("Plantão removido.", "success");
-                        } catch (e) { showAlert("Erro ao remover."); }
+                            addToast("Plantão removido.", "success");
+                        } catch (e) { addToast("Erro ao remover.", 'error'); }
                     }
                 });
             };
@@ -542,7 +600,7 @@
                     const saved = await handleSaveShift({ date: s.date, roleId: s.roleId, doctorId: doctor.id, status: 'confirmed' });
                     if (saved) successCount++;
                 }
-                showAlert(`Importados: ${successCount}.`, "success");
+                addToast(`Importados: ${successCount}.`, "success");
             };
 
             const handleAddShift = (group, dateObj) => {
@@ -599,12 +657,26 @@
                     {isModalOpen && <ShiftModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialData={editingShift} targetGroup={targetGroup} doctors={doctors} onSave={handleSaveShift} onDelete={requestDeleteShift} />}
                     {isDoctorModalOpen && <DoctorManagerModal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} doctors={doctors} onSave={handleSaveDoctor} onDelete={handleDeleteDoctor} />}
                     <ConfirmModal isOpen={confirmData.isOpen} title={confirmData.title} msg={confirmData.msg} onClose={() => setConfirmData({...confirmData, isOpen: false})} onConfirm={confirmData.onConfirm} />
-                    <AlertModal isOpen={alertData.isOpen} msg={alertData.msg} type={alertData.type} onClose={() => setAlertData({...alertData, isOpen: false})} />
+                    <ToastContainer toasts={toasts} removeToast={removeToast} />
                 </div>
             );
         }
 
         // --- UI COMPONENTS ---
+
+        const ToastContainer = ({ toasts, removeToast }) => {
+            return (
+                <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+                    {toasts.map(t => (
+                        <div key={t.id} className={`toast-enter flex items-center gap-3 p-4 rounded-lg shadow-lg border-l-4 min-w-[300px] bg-white text-slate-800 ${t.type === 'success' ? 'border-green-500' : 'border-red-500'}`}>
+                            {t.type === 'success' ? <CheckCircle className="text-green-500" size={20}/> : <AlertCircle className="text-red-500" size={20}/>}
+                            <div className="flex-1 text-sm font-medium">{t.msg}</div>
+                            <button onClick={() => removeToast(t.id)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
 
         const Header = ({ isOnline, viewMode, setViewMode, onExport, onImport, onOpenDoctors }) => {
             const [showImport, setShowImport] = useState(false);
@@ -620,6 +692,7 @@
                             <button onClick={() => setViewMode('weekly')} className={`px-3 py-1.5 rounded-md ${viewMode === 'weekly' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Semanal</button>
                             <button onClick={() => setViewMode('monthly')} className={`px-3 py-1.5 rounded-md ${viewMode === 'monthly' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Mensal</button>
                         </div>
+                        <button onClick={() => { window.focus(); window.print(); }} className="p-2 hover:bg-slate-100 rounded text-slate-600" title="Imprimir / Salvar PDF"><Printer size={20} /></button>
                         <button onClick={onOpenDoctors} className="p-2 hover:bg-slate-100 rounded text-slate-600 flex items-center gap-1"><Users size={20}/></button>
                         <button onClick={() => setShowImport(true)} className="p-2 hover:bg-slate-100 rounded text-slate-600"><Upload size={20} /></button>
                         <button onClick={onExport} className="p-2 hover:bg-slate-100 rounded text-slate-600"><Download size={20} /></button>
@@ -688,6 +761,8 @@
         };
 
         const MonthlyView = ({ currentDate, shifts, doctors, onAdd, onEdit, onDateClick }) => {
+            const [filterDoctorId, setFilterDoctorId] = useState('');
+            
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -696,17 +771,52 @@
             for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
             for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
 
+            // Estatísticas do médico selecionado
+            const monthlyStats = useMemo(() => {
+                if (!filterDoctorId) return null;
+                const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+                const count = shifts.filter(s => s.doctorId === filterDoctorId && s.date.startsWith(monthPrefix)).length;
+                return count;
+            }, [shifts, filterDoctorId, year, month]);
+
             return (
                 <div className="animate-in fade-in duration-500">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 no-print">
+                        <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm w-full sm:max-w-xs">
+                            <User size={18} className="text-slate-400 shrink-0" />
+                            <select 
+                                value={filterDoctorId} 
+                                onChange={(e) => setFilterDoctorId(e.target.value)}
+                                className="bg-transparent text-sm text-slate-700 focus:outline-none w-full cursor-pointer"
+                            >
+                                <option value="">Todos os Médicos</option>
+                                {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+                        {filterDoctorId && (
+                            <div className="text-sm font-medium text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
+                                <span className="font-bold text-lg">{monthlyStats}</span>
+                                <span>plantões em {currentDate.toLocaleDateString('pt-BR', { month: 'long' })}</span>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden">
                         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => <div key={d} className="bg-slate-100 p-2 text-center text-sm font-bold text-slate-600">{d}</div>)}
                         {days.map((date, idx) => {
                             if (!date) return <div key={`empty-${idx}`} className="bg-white min-h-[140px] opacity-50"></div>;
                             const dateStr = formatDate(date);
-                            const dayShifts = shifts.filter(s => s.date === dateStr);
+                            
+                            // Aplica o filtro aqui
+                            const dayShifts = shifts.filter(s => s.date === dateStr && (!filterDoctorId || s.doctorId === filterDoctorId));
+                            
                             const isToday = formatDate(new Date()) === dateStr;
+                            
+                            // Destaque visual se o médico filtrado tiver plantão neste dia
+                            const hasFilteredShift = filterDoctorId && dayShifts.length > 0;
+
                             return (
-                                <div key={dateStr} className={`bg-white min-h-[140px] p-1 relative flex flex-col group ${isToday ? 'bg-blue-50/50' : ''}`}>
+                                <div key={dateStr} className={`bg-white min-h-[140px] p-1 relative flex flex-col group ${isToday ? 'bg-blue-50/50' : ''} ${hasFilteredShift ? 'bg-green-50/60' : ''}`}>
                                     <div className="flex justify-between items-center px-1 mb-1"><span onClick={() => onDateClick(date)} className={`text-xs font-semibold cursor-pointer hover:bg-slate-100 px-1.5 py-0.5 rounded ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-700'}`}>{date.getDate()}</span></div>
                                     <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] mb-6">
                                         {dayShifts.map(s => {
