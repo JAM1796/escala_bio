@@ -43,6 +43,23 @@
 
     <script type="text/babel">
         // ==========================================
+        //  CONFIGURAÇÃO DO FIREBASE (IMPORTANTE!)
+        // ==========================================
+        // 1. Crie um projeto em console.firebase.google.com
+        // 2. Ative o Firestore Database e Authentication (Anônimo)
+        // 3. Cole suas credenciais abaixo substituindo os valores de exemplo:
+        
+        const YOUR_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyB6oNPcwBIgS-iDLXiiFmhrL3BuPUu069E",
+            authDomain: "escala-bb940.firebaseapp.com",
+            projectId: "escala-bb940",
+            storageBucket: "escala-bb940.firebasestorage.app",
+            messagingSenderId: "542123659526",
+            appId: "1:542123659526:web:4aa935ecee2341acc78e87",
+            measurementId: "G-6EW1ZSZ83C"
+        };
+
+        // ==========================================
         // DADOS PRESET (JANEIRO 2026)
         // ==========================================
         const JAN_2026_DATA = `01/01/2026, pa-diurno, Patricia
@@ -225,12 +242,12 @@
             );
         };
 
-        const USED_ICONS = ['Calendar', 'Clock', 'User', 'Users', 'ShieldAlert', 'CheckCircle', 'History', 'Trash2', 'Edit', 'Plus', 'Upload', 'Download', 'AlertTriangle', 'ChevronLeft', 'ChevronRight', 'Moon', 'Sun', 'Briefcase', 'Stethoscope', 'Slash', 'RefreshCw', 'MessageSquare', 'X', 'AlertCircle', 'LayoutGrid', 'FileDown'];
+        const USED_ICONS = ['Calendar', 'Clock', 'User', 'Users', 'ShieldAlert', 'CheckCircle', 'History', 'Trash2', 'Edit', 'Plus', 'Upload', 'Download', 'AlertTriangle', 'ChevronLeft', 'ChevronRight', 'Moon', 'Sun', 'Briefcase', 'Stethoscope', 'Slash', 'RefreshCw', 'MessageSquare', 'X', 'AlertCircle', 'LayoutGrid', 'FileDown', 'Server'];
         const Icons = {};
         USED_ICONS.forEach(name => Icons[name] = (props) => <LucideIcon name={name} {...props} />);
-        const { Calendar, Clock, User, Users, ShieldAlert, CheckCircle, History, Trash2, Edit, Plus, Upload, Download, AlertTriangle, ChevronLeft, ChevronRight, Moon, Sun, Briefcase, Stethoscope, Slash, RefreshCw, MessageSquare, X, AlertCircle, LayoutGrid, FileDown } = Icons;
+        const { Calendar, Clock, User, Users, ShieldAlert, CheckCircle, History, Trash2, Edit, Plus, Upload, Download, AlertTriangle, ChevronLeft, ChevronRight, Moon, Sun, Briefcase, Stethoscope, Slash, RefreshCw, MessageSquare, X, AlertCircle, LayoutGrid, FileDown, Server } = Icons;
 
-        // Lista Inicial de Médicos (apenas para seeding na primeira vez)
+        // Lista Inicial de Médicos
         const INITIAL_DOCTORS = [
             { id: 'd1', name: 'Ana Paula', crm: '10001', specialty: 'Clínica Médica', allowedHorizontal: false },
             { id: 'd2', name: 'Bruna Pimenta', crm: '10002', specialty: 'Clínica Médica', allowedHorizontal: false },
@@ -304,19 +321,37 @@
             }
         ];
 
-        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
-        let app, auth, db;
+        // Lógica para carregar configuração ou usar fallback para Canvas
+        let firebaseConfig = null;
         
-        if (typeof firebase !== 'undefined' && firebase.apps) {
+        // Verifica se há configuração global injetada (Canvas)
+        if (typeof window.__firebase_config !== 'undefined') {
+            try {
+                firebaseConfig = JSON.parse(window.__firebase_config);
+            } catch (e) { console.error("Erro config canvas"); }
+        } 
+        
+        // Se não houver configuração do Canvas, tenta usar a variável manual
+        if (!firebaseConfig && typeof YOUR_FIREBASE_CONFIG !== 'undefined' && YOUR_FIREBASE_CONFIG.apiKey !== "SUA_API_KEY_AQUI") {
+            firebaseConfig = YOUR_FIREBASE_CONFIG;
+        }
+
+        let app, auth, db;
+        let isConfigured = !!firebaseConfig;
+
+        if (isConfigured && typeof firebase !== 'undefined' && firebase.apps) {
             try {
                 if (!firebase.apps.length) app = firebase.initializeApp(firebaseConfig);
                 else app = firebase.app();
                 auth = firebase.auth();
                 db = firebase.firestore();
-            } catch (error) { console.error("Erro Firebase", error); }
+            } catch (error) { 
+                console.error("Erro Firebase", error); 
+                isConfigured = false;
+            }
         }
 
-        const appId = window.__app_id || 'default-app-id';
+        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'biocor-escala';
         const formatDate = (date) => date.toISOString().split('T')[0];
         const parseDateString = (str) => new Date(str + 'T12:00:00'); 
 
@@ -335,36 +370,24 @@
             return matrix[b.length][a.length];
         };
 
-        const findBestMatchDoctor = (nameInput) => {
-            const normalizedInput = nameInput.toLowerCase().trim();
-            let bestMatch = null;
-            let lowestDist = Infinity;
-            DOCTORS_MOCK.forEach(doc => {
-                const dist = levenshtein(normalizedInput, doc.name.toLowerCase());
-                if (dist < lowestDist && dist < 5) { lowestDist = dist; bestMatch = doc; }
-            });
-            return bestMatch;
-        };
-
         function App() {
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
             const [shifts, setShifts] = useState([]);
-            const [doctors, setDoctors] = useState([]); // Doctors state
+            const [doctors, setDoctors] = useState([]); 
             const [loadingShifts, setLoadingShifts] = useState(false);
             const [viewMode, setViewMode] = useState('daily');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             
             const [isModalOpen, setIsModalOpen] = useState(false);
-            const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false); // New modal
+            const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false);
             const [editingShift, setEditingShift] = useState(null);
             const [targetGroup, setTargetGroup] = useState(null);
             
             const [confirmData, setConfirmData] = useState({ isOpen: false, title: '', msg: '', onConfirm: null });
             const [alertData, setAlertData] = useState({ isOpen: false, msg: '', type: 'error' });
 
-            // Helper within component context to use dynamic doctors
             const findBestMatchDoctor = (nameInput) => {
                 const normalizedInput = nameInput.toLowerCase().trim();
                 let bestMatch = null;
@@ -377,8 +400,11 @@
             };
 
             useEffect(() => {
+                if (!isConfigured) {
+                    setAuthLoading(false);
+                    return;
+                }
                 const initAuth = async () => {
-                    if (!auth) { setAuthLoading(false); return; }
                     try {
                         if (window.__initial_auth_token) await auth.signInWithCustomToken(window.__initial_auth_token);
                         else await auth.signInAnonymously();
@@ -391,27 +417,21 @@
                 return () => { unsubscribe(); };
             }, []);
 
-            // Fetch Doctors & Migrate if needed
+            // Fetch Doctors
             useEffect(() => {
                 if (!user || !db) return;
                 const doctorsRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors');
-                
-                // Fetch doctors
                 const unsubscribe = doctorsRef.onSnapshot(async (snapshot) => {
                     if (snapshot.empty) {
-                        // Migration: Seed initial doctors
+                        // Seeding inicial
                         const batch = db.batch();
                         INITIAL_DOCTORS.forEach(doc => {
                             const docRef = doctorsRef.doc(doc.id);
                             batch.set(docRef, doc);
                         });
-                        try {
-                            await batch.commit();
-                            console.log("Migração de médicos concluída.");
-                        } catch (e) { console.error("Erro na migração", e); }
+                        try { await batch.commit(); } catch (e) {}
                     } else {
                         const fetchedDoctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        // Sort alphabetically
                         fetchedDoctors.sort((a, b) => a.name.localeCompare(b.name));
                         setDoctors(fetchedDoctors);
                     }
@@ -419,6 +439,7 @@
                 return () => unsubscribe();
             }, [user]);
 
+            // Fetch Shifts
             useEffect(() => {
                 if (!user || !db) return;
                 setLoadingShifts(true);
@@ -435,12 +456,10 @@
             }, [user]);
 
             const showAlert = (msg, type = 'error') => setAlertData({ isOpen: true, msg, type });
-
             const getShiftsByDate = (dateStr) => shifts.filter(s => s.date === dateStr);
 
             const handleSaveShift = async (shiftData, isEdit = false) => {
-                if (!user || !db) { showAlert("Erro de conexão com banco de dados."); return false; }
-                
+                if (!user || !db) return false;
                 const dateObj = parseDateString(shiftData.date);
                 const dayOfWeek = dateObj.getDay(); 
                 const doctor = doctors.find(d => d.id === shiftData.doctorId);
@@ -448,83 +467,55 @@
                 if (shiftData.roleId.includes('horizontal')) {
                     if (dayOfWeek === 0 || dayOfWeek === 6) { showAlert("Horizontal fechada aos fins de semana."); return false; }
                     if (!doctor?.allowedHorizontal) { showAlert(`Dr(a) ${doctor.name} não autorizado(a) para Horizontal.`); return false; }
-
-                    const currentHorizontal = shifts.filter(s => 
-                        s.date === shiftData.date && 
-                        s.roleId.includes('horizontal') && 
-                        s.id !== shiftData.id 
-                    );
-                    const potentialShifts = [...currentHorizontal, shiftData];
                     
+                    const currentHorizontal = shifts.filter(s => s.date === shiftData.date && s.roleId.includes('horizontal') && s.id !== shiftData.id);
+                    const potentialShifts = [...currentHorizontal, shiftData];
                     if (potentialShifts.length === 2) {
                         const hasTarde = potentialShifts.some(s => s.roleId === 'horizontal-tarde');
                         const hasManha = potentialShifts.some(s => s.roleId === 'horizontal-manha');
-                        
-                        if (hasTarde && !hasManha) {
-                            showAlert("Regra de Escala Horizontal: Quando houver 2 médicos, se um for Tarde, o outro obrigatoriamente deve ser Manhã.");
-                            return false;
-                        }
+                        if (hasTarde && !hasManha) { showAlert("Regra Horizontal: 2 médicos = 1 Manhã + 1 Tarde (ou 2 Integrais). Tarde exige Manhã."); return false; }
                     }
                 }
-                
                 const duplicates = shifts.find(s => s.date === shiftData.date && s.roleId === shiftData.roleId && s.doctorId === shiftData.doctorId && s.id !== shiftData.id);
                 if (duplicates) { showAlert("Médico já escalado neste horário exato."); return false; }
 
                 try {
                     const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts');
-                    
                     if (isEdit) {
                         const oldShift = shifts.find(s => s.id === shiftData.id);
                         let history = oldShift.history || [];
-                        
                         if (oldShift.doctorId !== shiftData.doctorId) {
                             const newDocName = doctors.find(d => d.id === shiftData.doctorId)?.name;
                             const oldDocName = doctors.find(d => d.id === oldShift.doctorId)?.name;
                             let msg = `Troca: ${oldDocName} -> ${newDocName}`;
                             if (shiftData.observation) msg += ` (Obs: ${shiftData.observation})`;
-
                             history.push({ type: 'swap', msg: msg, originalDoc: oldDocName, date: new Date().toISOString(), user: user.uid });
                         } else if (oldShift.roleId !== shiftData.roleId) {
                              history.push({ type: 'edit_role', msg: `Mudança Período: ${ROLES[oldShift.roleId].label} -> ${ROLES[shiftData.roleId].label}`, date: new Date().toISOString(), user: user.uid });
                         } else if (oldShift.observation !== shiftData.observation) {
-                             history.push({ type: 'edit_obs', msg: `Obs alterada: ${shiftData.observation}`, date: new Date().toISOString(), user: user.uid });
+                             history.push({ type: 'edit_obs', msg: `Obs alterada`, date: new Date().toISOString(), user: user.uid });
                         }
-
-                        await collectionRef.doc(shiftData.id).update({
-                            doctorId: shiftData.doctorId,
-                            roleId: shiftData.roleId,
-                            status: shiftData.status || 'confirmed',
-                            observation: shiftData.observation || '',
-                            history: history
-                        });
+                        await collectionRef.doc(shiftData.id).update({ ...shiftData, history: history });
                     } else {
                         await collectionRef.add({ ...shiftData, history: [{ type: 'create', date: new Date().toISOString(), user: user.uid }] });
                     }
                     return true;
-                } catch (e) { console.error("Erro save", e); showAlert("Erro ao salvar dados."); return false; }
+                } catch (e) { showAlert("Erro ao salvar."); return false; }
             };
 
-            // Doctor Management Functions
             const handleSaveDoctor = async (docData) => {
                 if (!user || !db) return;
                 try {
                     const doctorsRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors');
-                    if (docData.id) {
-                        await doctorsRef.doc(docData.id).update(docData);
-                    } else {
-                        await doctorsRef.add(docData);
-                    }
-                    showAlert("Médico salvo com sucesso!", "success");
+                    if (docData.id) await doctorsRef.doc(docData.id).update(docData);
+                    else await doctorsRef.add(docData);
+                    showAlert("Médico salvo.", "success");
                     return true;
-                } catch (e) {
-                    console.error(e);
-                    showAlert("Erro ao salvar médico.");
-                    return false;
-                }
+                } catch (e) { showAlert("Erro ao salvar médico."); return false; }
             };
 
             const handleDeleteDoctor = async (id) => {
-                if (!confirm("Tem certeza? Isso não apagará os plantões passados, mas o médico sumirá da lista de seleção.")) return;
+                if (!confirm("Remover médico?")) return;
                 try {
                     await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('doctors').doc(id).delete();
                     showAlert("Médico removido.", "success");
@@ -533,16 +524,12 @@
 
             const requestDeleteShift = (id) => {
                 setConfirmData({
-                    isOpen: true,
-                    title: 'Excluir Plantão',
-                    msg: 'Tem a certeza que deseja remover este plantão da escala?',
+                    isOpen: true, title: 'Excluir Plantão', msg: 'Confirmar exclusão?',
                     onConfirm: async () => {
                         try {
                             await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('shifts').doc(id).delete();
-                            showAlert("Plantão removido com sucesso!", "success");
-                        } catch (e) {
-                            showAlert("Erro ao remover plantão.");
-                        }
+                            showAlert("Plantão removido.", "success");
+                        } catch (e) { showAlert("Erro ao remover."); }
                     }
                 });
             };
@@ -555,7 +542,7 @@
                     const saved = await handleSaveShift({ date: s.date, roleId: s.roleId, doctorId: doctor.id, status: 'confirmed' });
                     if (saved) successCount++;
                 }
-                showAlert(`Importação concluída: ${successCount} registros salvos.`, "success");
+                showAlert(`Importados: ${successCount}.`, "success");
             };
 
             const handleAddShift = (group, dateObj) => {
@@ -571,12 +558,25 @@
                 setIsModalOpen(true);
             };
 
-            const goToDate = (date) => {
-                setCurrentDate(date);
-                setViewMode('daily');
-            };
+            const goToDate = (date) => { setCurrentDate(date); setViewMode('daily'); };
 
-            if (authLoading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500">Carregando...</div>;
+            if (!isConfigured) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md text-center">
+                            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Server size={32}/></div>
+                            <h1 className="text-xl font-bold text-slate-800 mb-2">Configuração Necessária</h1>
+                            <p className="text-slate-600 mb-6 text-sm">Este aplicativo requer uma conexão com o Firebase para funcionar fora do ambiente de teste.</p>
+                            <div className="bg-slate-100 p-3 rounded text-left text-xs font-mono text-slate-600 mb-6 overflow-x-auto">
+                                Edite o arquivo <strong>index.html</strong> e preencha a constante <code>YOUR_FIREBASE_CONFIG</code>.
+                            </div>
+                            <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Tentar Novamente</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (authLoading) return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-500">Conectando...</div>;
 
             return (
                 <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -598,14 +598,13 @@
                     
                     {isModalOpen && <ShiftModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialData={editingShift} targetGroup={targetGroup} doctors={doctors} onSave={handleSaveShift} onDelete={requestDeleteShift} />}
                     {isDoctorModalOpen && <DoctorManagerModal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} doctors={doctors} onSave={handleSaveDoctor} onDelete={handleDeleteDoctor} />}
-                    
                     <ConfirmModal isOpen={confirmData.isOpen} title={confirmData.title} msg={confirmData.msg} onClose={() => setConfirmData({...confirmData, isOpen: false})} onConfirm={confirmData.onConfirm} />
                     <AlertModal isOpen={alertData.isOpen} msg={alertData.msg} type={alertData.type} onClose={() => setAlertData({...alertData, isOpen: false})} />
                 </div>
             );
         }
 
-        // --- Componentes de UI ---
+        // --- UI COMPONENTS ---
 
         const Header = ({ isOnline, viewMode, setViewMode, onExport, onImport, onOpenDoctors }) => {
             const [showImport, setShowImport] = useState(false);
@@ -633,75 +632,33 @@
         const DoctorManagerModal = ({ isOpen, onClose, doctors, onSave, onDelete }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [formData, setFormData] = useState({});
-
             if (!isOpen) return null;
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                await onSave(formData);
-                setIsEditing(false);
-                setFormData({});
-            };
-
             return (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden h-[500px] flex flex-col animate-in fade-in zoom-in duration-200">
-                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-bold text-lg text-slate-800">Gerenciar Equipe</h3>
-                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
-                        </div>
-                        
+                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800">Gerenciar Equipe</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20}/></button></div>
                         <div className="flex-1 overflow-hidden flex">
-                            {/* Lista */}
                             <div className="w-1/2 border-r border-slate-200 overflow-y-auto p-2">
                                 <button onClick={() => { setIsEditing(true); setFormData({ allowedHorizontal: false }); }} className="w-full mb-2 p-2 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-blue-100"><Plus size={16}/> Novo Médico</button>
                                 {doctors.map(doc => (
                                     <div key={doc.id} className="p-3 border-b border-slate-100 hover:bg-slate-50 flex justify-between items-center group">
-                                        <div>
-                                            <div className="font-medium text-sm text-slate-800">{doc.name}</div>
-                                            <div className="text-xs text-slate-500">CRM: {doc.crm}</div>
-                                        </div>
+                                        <div><div className="font-medium text-sm text-slate-800">{doc.name}</div><div className="text-xs text-slate-500">CRM: {doc.crm}</div></div>
                                         <button onClick={() => { setIsEditing(true); setFormData(doc); }} className="text-slate-400 hover:text-blue-600 p-1"><Edit size={16}/></button>
                                     </div>
                                 ))}
                             </div>
-
-                            {/* Form */}
                             <div className="w-1/2 p-6 overflow-y-auto bg-slate-50/50">
                                 {isEditing ? (
-                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                    <form onSubmit={async (e) => { e.preventDefault(); await onSave(formData); setIsEditing(false); setFormData({}); }} className="space-y-4">
                                         <h4 className="font-bold text-sm uppercase text-slate-500 mb-4">{formData.id ? 'Editar Médico' : 'Novo Médico'}</h4>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-700 mb-1">Nome Completo</label>
-                                            <input required type="text" className="w-full p-2 border rounded" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-700 mb-1">CRM</label>
-                                            <input required type="text" className="w-full p-2 border rounded" value={formData.crm || ''} onChange={e => setFormData({...formData, crm: e.target.value})} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-700 mb-1">Especialidade</label>
-                                            <input required type="text" className="w-full p-2 border rounded" value={formData.specialty || ''} onChange={e => setFormData({...formData, specialty: e.target.value})} />
-                                        </div>
-                                        <div className="flex items-center gap-2 pt-2">
-                                            <input type="checkbox" id="h-allow" checked={formData.allowedHorizontal || false} onChange={e => setFormData({...formData, allowedHorizontal: e.target.checked})} />
-                                            <label htmlFor="h-allow" className="text-sm text-slate-700">Autorizado Horizontal?</label>
-                                        </div>
-                                        <div className="pt-4 flex gap-2">
-                                            <button type="button" onClick={() => setIsEditing(false)} className="px-3 py-2 bg-slate-200 rounded text-sm">Cancelar</button>
-                                            <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Salvar</button>
-                                        </div>
-                                        {formData.id && (
-                                            <div className="pt-4 border-t border-slate-200 mt-4">
-                                                <button type="button" onClick={() => { onDelete(formData.id); setIsEditing(false); }} className="text-red-600 text-xs hover:underline">Excluir este médico</button>
-                                            </div>
-                                        )}
+                                        <div><label className="block text-xs font-medium text-slate-700 mb-1">Nome</label><input required type="text" className="w-full p-2 border rounded" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
+                                        <div><label className="block text-xs font-medium text-slate-700 mb-1">CRM</label><input required type="text" className="w-full p-2 border rounded" value={formData.crm || ''} onChange={e => setFormData({...formData, crm: e.target.value})} /></div>
+                                        <div><label className="block text-xs font-medium text-slate-700 mb-1">Especialidade</label><input required type="text" className="w-full p-2 border rounded" value={formData.specialty || ''} onChange={e => setFormData({...formData, specialty: e.target.value})} /></div>
+                                        <div className="flex items-center gap-2 pt-2"><input type="checkbox" id="h-allow" checked={formData.allowedHorizontal || false} onChange={e => setFormData({...formData, allowedHorizontal: e.target.checked})} /><label htmlFor="h-allow" className="text-sm text-slate-700">Autorizado Horizontal?</label></div>
+                                        <div className="pt-4 flex gap-2"><button type="button" onClick={() => setIsEditing(false)} className="px-3 py-2 bg-slate-200 rounded text-sm">Cancelar</button><button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Salvar</button></div>
+                                        {formData.id && <div className="pt-4 border-t border-slate-200 mt-4"><button type="button" onClick={() => { onDelete(formData.id); setIsEditing(false); }} className="text-red-600 text-xs hover:underline">Excluir</button></div>}
                                     </form>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm p-4">
-                                        Selecione um médico para editar ou adicione um novo.
-                                    </div>
-                                )}
+                                ) : <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm p-4">Selecione um médico para editar ou adicione um novo.</div>}
                             </div>
                         </div>
                     </div>
@@ -712,21 +669,15 @@
         const DateNavigation = ({ currentDate, setCurrentDate, viewMode }) => {
             const navigate = (dir) => { 
                 const n = new Date(currentDate); 
-                if (viewMode === 'monthly') {
-                    n.setMonth(n.getMonth() + dir);
-                } else if (viewMode === 'weekly') {
-                    n.setDate(n.getDate() + (dir * 7));
-                } else {
-                    n.setDate(n.getDate() + dir);
-                }
+                if (viewMode === 'monthly') n.setMonth(n.getMonth() + dir);
+                else if (viewMode === 'weekly') n.setDate(n.getDate() + (dir * 7));
+                else n.setDate(n.getDate() + dir);
                 setCurrentDate(n); 
             };
-            
             const formatTitle = () => {
                 if (viewMode === 'monthly') return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                 return currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
             };
-
             return (
                 <div className="flex justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                     <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full"><ChevronLeft size={20} /></button>
@@ -748,49 +699,25 @@
             return (
                 <div className="animate-in fade-in duration-500">
                     <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden">
-                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                            <div key={d} className="bg-slate-100 p-2 text-center text-sm font-bold text-slate-600">{d}</div>
-                        ))}
+                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => <div key={d} className="bg-slate-100 p-2 text-center text-sm font-bold text-slate-600">{d}</div>)}
                         {days.map((date, idx) => {
                             if (!date) return <div key={`empty-${idx}`} className="bg-white min-h-[140px] opacity-50"></div>;
-                            
                             const dateStr = formatDate(date);
                             const dayShifts = shifts.filter(s => s.date === dateStr);
                             const isToday = formatDate(new Date()) === dateStr;
-
                             return (
                                 <div key={dateStr} className={`bg-white min-h-[140px] p-1 relative flex flex-col group ${isToday ? 'bg-blue-50/50' : ''}`}>
-                                    <div className="flex justify-between items-center px-1 mb-1">
-                                        <span onClick={() => onDateClick(date)} className={`text-xs font-semibold cursor-pointer hover:bg-slate-100 px-1.5 py-0.5 rounded ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-700'}`}>
-                                            {date.getDate()}
-                                        </span>
-                                    </div>
-                                    
+                                    <div className="flex justify-between items-center px-1 mb-1"><span onClick={() => onDateClick(date)} className={`text-xs font-semibold cursor-pointer hover:bg-slate-100 px-1.5 py-0.5 rounded ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-700'}`}>{date.getDate()}</span></div>
                                     <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[85px] mb-6">
                                         {dayShifts.map(s => {
                                             const doc = doctors.find(d => d.id === s.doctorId);
                                             const group = ROLE_GROUPS.find(g => g.subRoles.includes(s.roleId));
                                             const isPartial = s.roleId.includes('manha') || s.roleId.includes('tarde');
                                             const badge = isPartial ? (s.roleId.includes('manha') ? 'M' : 'T') : '';
-                                            
-                                            const colorClass = group?.id === 'pa-diurno' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                                               group?.id === 'horizontal' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                               'bg-indigo-100 text-indigo-700 border-indigo-200';
-
-                                            return (
-                                                <div 
-                                                    key={s.id} 
-                                                    onClick={() => onEdit(s)}
-                                                    className={`text-[9px] px-1 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 transition-opacity ${colorClass} flex justify-between items-center`}
-                                                    title={`${doc?.name} - ${ROLES[s.roleId].label}`}
-                                                >
-                                                    <span className="truncate">{doc?.name?.split(' ')[0]}</span>
-                                                    {badge && <span className="font-bold text-[8px] ml-0.5 opacity-80">{badge}</span>}
-                                                </div>
-                                            );
+                                            const colorClass = group?.id === 'pa-diurno' ? 'bg-blue-100 text-blue-700 border-blue-200' : group?.id === 'horizontal' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200';
+                                            return <div key={s.id} onClick={() => onEdit(s)} className={`text-[9px] px-1 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 transition-opacity ${colorClass} flex justify-between items-center`} title={`${doc?.name} - ${ROLES[s.roleId].label}`}><span className="truncate">{doc?.name?.split(' ')[0]}</span>{badge && <span className="font-bold text-[8px] ml-0.5 opacity-80">{badge}</span>}</div>;
                                         })}
                                     </div>
-
                                     <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg">
                                         <button onClick={() => onAdd(ROLE_GROUPS[0], date)} className="p-1 hover:bg-blue-100 text-blue-600 rounded" title="Add Diurno"><Sun size={12} /></button>
                                         <button onClick={() => onAdd(ROLE_GROUPS[1], date)} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded" title="Add Horizontal"><Briefcase size={12} /></button>
